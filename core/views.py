@@ -211,6 +211,10 @@ class AdminAppointmentListView(generics.ListAPIView):
     permission_classes = [IsAdmin]
 
     def get_queryset(self):
-        return Appointment.objects.select_related('doctor', 'patient', 'slot').order_by('-date', '-created_at')
+        queryset = Appointment.objects.select_related('doctor', 'patient', 'slot')
+        for field in ('doctor', 'status', 'date'):
+            if value := self.request.query_params.get(field):
+                queryset = queryset.filter(**{field: value})
+        return queryset.order_by('-date', '-created_at')
 
 
