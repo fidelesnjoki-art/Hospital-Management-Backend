@@ -8,6 +8,7 @@ from .views import (
     BookAppointmentView,
     DoctorDashboardView,
     DoctorDetailView,
+    DoctorDiagnosisView,
     DoctorListView,
     DoctorScheduledAppointmentsView,
     EmailTokenObtainPairView,
@@ -30,6 +31,7 @@ urlpatterns = [
     path('appointments/book/', BookAppointmentView.as_view(), name='book-appointment'),
     path('doctor/appointments/', DoctorScheduledAppointmentsView.as_view(), name='doctor-appointments'),
     path('doctor/dashboard/', DoctorDashboardView.as_view(), name='doctor-dashboard'),
+    path('doctor/appointments/<int:appointment_id>/diagnosis/', DoctorDiagnosisView.as_view(), name='doctor-diagnosis'),
     path('admin/appointments/', AdminAppointmentListView.as_view(), name='admin-appointments'),
     path('admin/appointments/<int:appointment_id>/status/', AdminUpdateStatusView.as_view(), name='admin-appointment-status'),
 ]

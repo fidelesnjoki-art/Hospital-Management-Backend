@@ -13,6 +13,7 @@ from .serializers import (
     AccountSettingsSerializer,
     AppointmentSerializer,
     BookAppointmentSerializer,
+    DiagnosisSerializer,
     DoctorSerializer,
     ProfileSerializer,
     RegisterSerializer,
@@ -170,6 +171,18 @@ class DoctorDashboardView(generics.ListAPIView):
             doctor__user=self.request.user,
             status='completed',
         ).select_related('patient', 'slot').order_by('-date', '-completed_at')
+
+
+class DoctorDiagnosisView(APIView):
+    permission_classes = [IsDoctor]
+
+    def patch(self, request, appointment_id):
+        serializer = DiagnosisSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        appointment = get_object_or_404(Appointment, id=appointment_id, doctor__user=request.user)
+        appointment.diagnosis = serializer.validated_data['diagnosis']
+        appointment.save(update_fields=['diagnosis'])
+        return Response(AppointmentSerializer(appointment).data)
 
 
 class AdminAppointmentListView(generics.ListAPIView):

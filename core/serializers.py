@@ -140,3 +140,7 @@ class UpdateStatusSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=['pending', 'confirmed', 'completed', 'cancelled'])
 
 
+class DiagnosisSerializer(serializers.Serializer):
+    diagnosis = serializers.CharField(allow_blank=True)
+
+
