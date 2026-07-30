@@ -206,3 +206,11 @@ class DoctorTreatmentView(APIView):
         return Response(AppointmentSerializer(appointment).data)
 
 
+class AdminAppointmentListView(generics.ListAPIView):
+    serializer_class = AppointmentSerializer
+    permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        return Appointment.objects.select_related('doctor', 'patient', 'slot').order_by('-date', '-created_at')
+
+
