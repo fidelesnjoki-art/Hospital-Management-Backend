@@ -227,5 +227,9 @@ class AdminUpdateStatusView(APIView):
         serializer.is_valid(raise_exception=True)
         appointment = get_object_or_404(Appointment, id=appointment_id)
         appointment.status = serializer.validated_data['status']
-        appointment.save(update_fields=['status'])
+        update_fields = ['status']
+        if appointment.status == 'completed':
+            appointment.completed_at = appointment.completed_at or timezone.now()
+            update_fields.append('completed_at')
+        appointment.save(update_fields=update_fields)
         return Response(AppointmentSerializer(appointment).data)
