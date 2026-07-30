@@ -45,6 +45,18 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
 
+class EmailTokenObtainPairView(TokenObtainPairView):
+    def post(self, request, *args, **kwargs):
+        identifier = request.data.get('email') or request.data.get('username')
+        if identifier:
+            user = User.objects.filter(email__iexact=identifier).first()
+            if user:
+                data = request.data.copy()
+                data['username'] = user.username
+                request._full_data = data
+        return super().post(request, *args, **kwargs)
+
+
 class AccountSettingsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
