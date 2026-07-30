@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.contrib.auth.models import User
+from django.conf import settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -32,6 +35,79 @@ class HospitalMsApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('access', response.data)
 
+    def test_anonymous_users_cannot_access_protected_endpoints(self):
+        endpoints = [
+            f'{self.api_prefix}/auth/me/',
+            f'{self.api_prefix}/dashboard/patient/',
+            f'{self.api_prefix}/doctors/',
+            f'{self.api_prefix}/slots/',
+        ]
+
+        for endpoint in endpoints:
+            with self.subTest(endpoint=endpoint):
+                response = self.client.get(endpoint)
+                self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_registration_creates_a_patient_profile(self):
+        response = self.client.post(
+            f'{self.api_prefix}/auth/register/',
+            {
+                'email': 'new.patient@example.com',
+                'password': 'A-safe-password-123',
+                'full_name': 'New Patient',
+                'phone': '+254700000000',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        user = User.objects.get(email='new.patient@example.com')
+        self.assertEqual(user.first_name, 'New Patient')
+        self.assertEqual(user.profile.role, 'patient')
+        self.assertEqual(user.profile.phone, '+254700000000')
+
+    def test_account_settings_update_contact_details_and_password(self):
+        self.client.force_authenticate(self.patient)
+        response = self.client.patch(
+            f'{self.api_prefix}/auth/settings/',
+            {
+                'email': 'changed@example.com',
+                'phone': '+254711111111',
+                'current_password': 'strong-password',
+                'new_password': 'An-even-stronger-password-123',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.patient.refresh_from_db()
+        self.patient.profile.refresh_from_db()
+        self.assertEqual(self.patient.email, 'changed@example.com')
+        self.assertEqual(self.patient.profile.phone, '+254711111111')
+        self.assertTrue(self.patient.check_password('An-even-stronger-password-123'))
+
+    def test_slot_list_excludes_past_and_booked_slots(self):
+        past_slot = Slot.objects.create(
+            doctor=self.doctor,
+            date=timezone.localdate() - timedelta(days=1),
+            start_time='09:00',
+        )
+        booked_slot = Slot.objects.create(
+            doctor=self.doctor,
+            date=timezone.localdate(),
+            start_time='11:00',
+            is_booked=True,
+        )
+        self.client.force_authenticate(self.patient)
+
+        response = self.client.get(f'{self.api_prefix}/slots/?doctor={self.doctor.id}')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        returned_ids = {slot['id'] for slot in response.data}
+        self.assertIn(self.slot.id, returned_ids)
+        self.assertNotIn(past_slot.id, returned_ids)
+        self.assertNotIn(booked_slot.id, returned_ids)
+
     def test_patient_can_book_an_available_slot_once(self):
         self.client.force_authenticate(self.patient)
         response = self.client.post(
@@ -59,6 +135,33 @@ class HospitalMsApiTests(APITestCase):
         self.assertEqual(response.data['status'], 'completed')
         self.assertEqual(response.data['diagnosis'], 'Seasonal allergy')
 
+    def test_doctor_cannot_update_another_doctors_appointment(self):
+        another_doctor_user = User.objects.create_user(
+            username='other-doctor', password='strong-password',
+        )
+        Profile.objects.create(user=another_doctor_user, role='doctor')
+        another_doctor = Doctor.objects.create(
+            user=another_doctor_user, name='Dr Ada Lovelace', specialty='Cardiology',
+        )
+        another_slot = Slot.objects.create(
+            doctor=another_doctor, date=timezone.localdate(), start_time='12:00',
+        )
+        appointment = Appointment.objects.create(
+            patient=self.patient, doctor=another_doctor, slot=another_slot,
+            date=another_slot.date, status='confirmed',
+        )
+        self.client.force_authenticate(self.doctor_user)
+
+        response = self.client.patch(
+            f'{self.api_prefix}/doctor/appointments/{appointment.id}/diagnosis/',
+            {'diagnosis': 'Unauthorized update'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        appointment.refresh_from_db()
+        self.assertEqual(appointment.diagnosis, '')
+
     def test_admin_can_update_an_appointment_status(self):
         appointment = Appointment.objects.create(
             patient=self.patient, doctor=self.doctor, slot=self.slot,
@@ -76,3 +179,6 @@ class HospitalMsApiTests(APITestCase):
         self.client.force_authenticate(self.patient)
         response = self.client.get(f'{self.api_prefix}/admin/appointments/')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_production_cors_is_not_open_to_every_origin(self):
+        self.assertFalse(settings.CORS_ALLOW_ALL_ORIGINS)
