@@ -15,6 +15,7 @@ from .serializers import (
     BookAppointmentSerializer,
     DiagnosisSerializer,
     DoctorSerializer,
+    ProfileSerializer,
     RegisterSerializer,
     SlotSerializer,
     TreatmentSerializer,
@@ -55,6 +56,13 @@ class EmailTokenObtainPairView(TokenObtainPairView):
                 data['username'] = user.username
                 request._full_data = data
         return super().post(request, *args, **kwargs)
+
+
+class MeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response(ProfileSerializer(request.user.profile).data)
 
 
 class AccountSettingsView(APIView):
