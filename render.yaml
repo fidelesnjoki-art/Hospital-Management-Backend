@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: cliniq-backend
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application"
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cliniq-db
+          property: connectionString
+
+databases:
+  - name: cliniq-db
+    plan: free
