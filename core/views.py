@@ -18,6 +18,7 @@ from .serializers import (
     ProfileSerializer,
     RegisterSerializer,
     SlotSerializer,
+    TreatmentSerializer,
     UpdateStatusSerializer,
 )
 
@@ -182,6 +183,27 @@ class DoctorDiagnosisView(APIView):
         appointment = get_object_or_404(Appointment, id=appointment_id, doctor__user=request.user)
         appointment.diagnosis = serializer.validated_data['diagnosis']
         appointment.save(update_fields=['diagnosis'])
+        return Response(AppointmentSerializer(appointment).data)
+
+
+class DoctorTreatmentView(APIView):
+    permission_classes = [IsDoctor]
+
+    def patch(self, request, appointment_id):
+        serializer = TreatmentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        appointment = get_object_or_404(
+            Appointment,
+            id=appointment_id,
+            doctor__user=request.user,
+            status__in=['pending', 'confirmed', 'completed'],
+        )
+        appointment.treatment = serializer.validated_data['treatment']
+        if 'diagnosis' in serializer.validated_data:
+            appointment.diagnosis = serializer.validated_data['diagnosis']
+        appointment.status = 'completed'
+        appointment.completed_at = appointment.completed_at or timezone.now()
+        appointment.save(update_fields=['treatment', 'diagnosis', 'status', 'completed_at'])
         return Response(AppointmentSerializer(appointment).data)
 
 

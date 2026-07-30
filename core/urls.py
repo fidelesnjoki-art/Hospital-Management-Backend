@@ -2,20 +2,10 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
-    AccountSettingsView,
-    AdminAppointmentListView,
-    AdminUpdateStatusView,
-    BookAppointmentView,
-    DoctorDashboardView,
-    DoctorDetailView,
-    DoctorDiagnosisView,
-    DoctorListView,
-    DoctorScheduledAppointmentsView,
-    EmailTokenObtainPairView,
-    MeView,
-    PatientDashboardView,
-    RegisterView,
-    SlotListView,
+    AccountSettingsView, AdminAppointmentListView, AdminUpdateStatusView,
+    BookAppointmentView, DoctorDashboardView, DoctorDetailView, DoctorDiagnosisView,
+    DoctorListView, DoctorScheduledAppointmentsView, DoctorTreatmentView,
+    EmailTokenObtainPairView, MeView, PatientDashboardView, RegisterView, SlotListView,
 )
 
 urlpatterns = [
@@ -32,6 +22,7 @@ urlpatterns = [
     path('doctor/appointments/', DoctorScheduledAppointmentsView.as_view(), name='doctor-appointments'),
     path('doctor/dashboard/', DoctorDashboardView.as_view(), name='doctor-dashboard'),
     path('doctor/appointments/<int:appointment_id>/diagnosis/', DoctorDiagnosisView.as_view(), name='doctor-diagnosis'),
+    path('doctor/appointments/<int:appointment_id>/treatment/', DoctorTreatmentView.as_view(), name='doctor-treatment'),
     path('admin/appointments/', AdminAppointmentListView.as_view(), name='admin-appointments'),
     path('admin/appointments/<int:appointment_id>/status/', AdminUpdateStatusView.as_view(), name='admin-appointment-status'),
 ]

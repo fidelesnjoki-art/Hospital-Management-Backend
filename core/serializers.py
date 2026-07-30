@@ -144,3 +144,6 @@ class DiagnosisSerializer(serializers.Serializer):
     diagnosis = serializers.CharField(allow_blank=True)
 
 
+class TreatmentSerializer(serializers.Serializer):
+    treatment = serializers.CharField(allow_blank=False)
+    diagnosis = serializers.CharField(required=False, allow_blank=True)
