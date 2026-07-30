@@ -161,6 +161,17 @@ class DoctorScheduledAppointmentsView(generics.ListAPIView):
         ).select_related('patient', 'slot').order_by('date', 'slot__start_time')
 
 
+class DoctorDashboardView(generics.ListAPIView):
+    serializer_class = AppointmentSerializer
+    permission_classes = [IsDoctor]
+
+    def get_queryset(self):
+        return Appointment.objects.filter(
+            doctor__user=self.request.user,
+            status='completed',
+        ).select_related('patient', 'slot').order_by('-date', '-completed_at')
+
+
 class AdminAppointmentListView(generics.ListAPIView):
     serializer_class = AppointmentSerializer
     permission_classes = [IsAdmin]
