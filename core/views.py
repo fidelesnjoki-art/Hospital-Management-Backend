@@ -19,6 +19,7 @@ from .serializers import (
     RegisterSerializer,
     SlotSerializer,
     TreatmentSerializer,
+    UpdateStatusSerializer,
 )
 
 
@@ -218,3 +219,13 @@ class AdminAppointmentListView(generics.ListAPIView):
         return queryset.order_by('-date', '-created_at')
 
 
+class AdminUpdateStatusView(APIView):
+    permission_classes = [IsAdmin]
+
+    def patch(self, request, appointment_id):
+        serializer = UpdateStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        appointment = get_object_or_404(Appointment, id=appointment_id)
+        appointment.status = serializer.validated_data['status']
+        appointment.save(update_fields=['status'])
+        return Response(AppointmentSerializer(appointment).data)

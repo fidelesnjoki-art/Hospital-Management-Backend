@@ -136,6 +136,10 @@ class AppointmentSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'patient', 'status', 'diagnosis', 'treatment', 'created_at', 'completed_at')
 
 
+class UpdateStatusSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=['pending', 'confirmed', 'completed', 'cancelled'])
+
+
 class DiagnosisSerializer(serializers.Serializer):
     diagnosis = serializers.CharField(allow_blank=True)
 
