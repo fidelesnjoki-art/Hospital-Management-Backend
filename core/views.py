@@ -77,6 +77,23 @@ class AccountSettingsView(APIView):
         return Response(AccountSettingsSerializer(serializer.save()).data)
 
 
+class PatientDashboardView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        appointments = Appointment.objects.filter(patient=request.user).select_related('doctor', 'slot')
+        return Response({
+            'upcoming': AppointmentSerializer(
+                appointments.filter(status__in=['pending', 'confirmed'], date__gte=timezone.localdate()),
+                many=True,
+            ).data,
+            'history': AppointmentSerializer(
+                appointments.filter(status__in=['completed', 'cancelled']).order_by('-date', '-created_at'),
+                many=True,
+            ).data,
+        })
+
+
 class DoctorListView(generics.ListAPIView):
     serializer_class = DoctorSerializer
     permission_classes = [permissions.IsAuthenticated]
