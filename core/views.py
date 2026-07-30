@@ -12,6 +12,7 @@ from .models import Appointment, Doctor, Profile, Slot
 from .serializers import (
     AccountSettingsSerializer,
     AppointmentSerializer,
+    BookAppointmentSerializer,
     DiagnosisSerializer,
     DoctorSerializer,
     ProfileSerializer,
@@ -109,6 +110,28 @@ class SlotListView(generics.ListAPIView):
         if doctor_id := self.request.query_params.get('doctor'):
             queryset = queryset.filter(doctor_id=doctor_id)
         return queryset
+
+
+class BookAppointmentView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = BookAppointmentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            slot = get_object_or_404(Slot.objects.select_for_update(), id=serializer.validated_data['slot_id'])
+            if slot.is_booked:
+                return Response({'detail': 'This slot is already booked.'}, status=status.HTTP_400_BAD_REQUEST)
+            appointment = Appointment.objects.create(
+                patient=request.user,
+                doctor=slot.doctor,
+                slot=slot,
+                date=slot.date,
+                status='confirmed',
+            )
+            slot.is_booked = True
+            slot.save(update_fields=['is_booked'])
+        return Response(AppointmentSerializer(appointment).data, status=status.HTTP_201_CREATED)
 
 
 class DoctorScheduledAppointmentsView(generics.ListAPIView):

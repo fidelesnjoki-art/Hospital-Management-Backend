@@ -115,6 +115,15 @@ class SlotSerializer(serializers.ModelSerializer):
         fields = ('id', 'doctor', 'doctor_name', 'date', 'start_time', 'is_booked')
 
 
+class BookAppointmentSerializer(serializers.Serializer):
+    slot_id = serializers.IntegerField()
+
+    def validate_slot_id(self, value):
+        if not Slot.objects.filter(id=value).exists():
+            raise serializers.ValidationError('Slot not found.')
+        return value
+
+
 class AppointmentSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(source='doctor.name', read_only=True)
     patient_username = serializers.CharField(source='patient.username', read_only=True)
