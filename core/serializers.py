@@ -66,6 +66,39 @@ class ProfileSerializer(serializers.ModelSerializer):
         return obj.user.get_full_name() or obj.user.username
 
 
+class AccountSettingsSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.EmailField(source='user.email', required=False, allow_blank=True)
+    current_password = serializers.CharField(write_only=True, required=False)
+    new_password = serializers.CharField(write_only=True, required=False)
+
+    class Meta:
+        model = Profile
+        fields = ('username', 'email', 'phone', 'current_password', 'new_password')
+
+    def validate(self, attrs):
+        current_password, new_password = attrs.get('current_password'), attrs.get('new_password')
+        if bool(current_password) != bool(new_password):
+            raise serializers.ValidationError('Provide both current_password and new_password to change your password.')
+        if new_password and not self.instance.user.check_password(current_password):
+            raise serializers.ValidationError({'current_password': 'Current password is incorrect.'})
+        return attrs
+
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop('user', {})
+        validated_data.pop('current_password', None)
+        new_password = validated_data.pop('new_password', None)
+        instance.phone = validated_data.get('phone', instance.phone)
+        instance.save(update_fields=['phone'])
+        if 'email' in user_data:
+            instance.user.email = user_data['email']
+        if new_password:
+            instance.user.set_password(new_password)
+        if user_data or new_password:
+            instance.user.save()
+        return instance
+
+
 class DoctorSerializer(serializers.ModelSerializer):
     available_slots = serializers.IntegerField(read_only=True)
 

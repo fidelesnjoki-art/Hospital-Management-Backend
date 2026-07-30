@@ -10,6 +10,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import Appointment, Doctor, Profile, Slot
 from .serializers import (
+    AccountSettingsSerializer,
     AppointmentSerializer,
     BookAppointmentSerializer,
     DiagnosisSerializer,
@@ -62,6 +63,18 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(ProfileSerializer(request.user.profile).data)
+
+
+class AccountSettingsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response(AccountSettingsSerializer(request.user.profile).data)
+
+    def patch(self, request):
+        serializer = AccountSettingsSerializer(request.user.profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        return Response(AccountSettingsSerializer(serializer.save()).data)
 
 
 class PatientDashboardView(APIView):
