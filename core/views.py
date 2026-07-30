@@ -13,6 +13,7 @@ from .serializers import (
     AccountSettingsSerializer,
     AppointmentSerializer,
     DiagnosisSerializer,
+    DoctorSerializer,
     ProfileSerializer,
     RegisterSerializer,
     TreatmentSerializer,
@@ -72,6 +73,30 @@ class AccountSettingsView(APIView):
         serializer = AccountSettingsSerializer(request.user.profile, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         return Response(AccountSettingsSerializer(serializer.save()).data)
+
+
+class DoctorListView(generics.ListAPIView):
+    serializer_class = DoctorSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Doctor.objects.annotate(
+            available_slots=Count('slots', filter=Q(slots__is_booked=False, slots__date__gte=timezone.localdate()))
+        )
+        specialty = self.request.query_params.get('specialty')
+        if specialty:
+            queryset = queryset.filter(specialty__iexact=specialty)
+        return queryset.order_by('name')
+
+
+class DoctorDetailView(generics.RetrieveAPIView):
+    serializer_class = DoctorSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Doctor.objects.annotate(
+            available_slots=Count('slots', filter=Q(slots__is_booked=False, slots__date__gte=timezone.localdate()))
+        )
 
 
 class DoctorScheduledAppointmentsView(generics.ListAPIView):

@@ -99,6 +99,14 @@ class AccountSettingsSerializer(serializers.ModelSerializer):
         return instance
 
 
+class DoctorSerializer(serializers.ModelSerializer):
+    available_slots = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Doctor
+        fields = ('id', 'name', 'specialty', 'bio', 'photo_url', 'available_slots')
+
+
 class AppointmentSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(source='doctor.name', read_only=True)
     patient_username = serializers.CharField(source='patient.username', read_only=True)
