@@ -187,13 +187,18 @@ class BookAppointmentSerializer(serializers.Serializer):
 class AppointmentSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(source='doctor.name', read_only=True)
     patient_username = serializers.CharField(source='patient.username', read_only=True)
+    patient_full_name = serializers.SerializerMethodField()
     scheduled_time = serializers.TimeField(source='slot.start_time', read_only=True, allow_null=True)
 
     class Meta:
         model = Appointment
-        fields = ('id', 'doctor', 'doctor_name', 'patient', 'patient_username', 'date', 'scheduled_time',
+        fields = ('id', 'doctor', 'doctor_name', 'patient', 'patient_username', 'patient_full_name', 'date', 'scheduled_time',
                   'status', 'diagnosis', 'treatment', 'created_at', 'completed_at')
         read_only_fields = ('id', 'patient', 'status', 'diagnosis', 'treatment', 'created_at', 'completed_at')
+
+    def get_patient_full_name(self, obj):
+        """Expose the registered patient's name while retaining the legacy username."""
+        return obj.patient.get_full_name() or obj.patient.username
 
 
 class UpdateStatusSerializer(serializers.Serializer):

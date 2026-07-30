@@ -20,6 +20,7 @@ class HospitalMsApiTests(APITestCase):
         self.doctor = Doctor.objects.create(user=self.doctor_user, name='Dr Grace Hopper', specialty='General')
         self.patient = User.objects.create_user(
             username='patient', email='patient@example.com', password='strong-password',
+            first_name='Ada', last_name='Lovelace',
         )
         Profile.objects.create(user=self.patient, role='patient')
         self.slot = Slot.objects.create(
@@ -186,6 +187,29 @@ class HospitalMsApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'completed')
         self.assertEqual(response.data['diagnosis'], 'Seasonal allergy')
+        self.assertEqual(response.data['patient_full_name'], 'Ada Lovelace')
+        self.assertEqual(response.data['patient_username'], 'patient')
+
+    def test_doctor_appointment_lists_include_the_patient_full_name(self):
+        upcoming = Appointment.objects.create(
+            patient=self.patient, doctor=self.doctor, slot=self.slot,
+            date=self.slot.date, status='confirmed',
+        )
+        history = Appointment.objects.create(
+            patient=self.patient, doctor=self.doctor,
+            date=timezone.localdate() - timedelta(days=1), status='completed',
+        )
+        self.client.force_authenticate(self.doctor_user)
+
+        upcoming_response = self.client.get(f'{self.api_prefix}/doctor/appointments/')
+        history_response = self.client.get(f'{self.api_prefix}/doctor/dashboard/')
+
+        self.assertEqual(upcoming_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(history_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(upcoming_response.data[0]['id'], upcoming.id)
+        self.assertEqual(history_response.data[0]['id'], history.id)
+        self.assertEqual(upcoming_response.data[0]['patient_full_name'], 'Ada Lovelace')
+        self.assertEqual(history_response.data[0]['patient_full_name'], 'Ada Lovelace')
 
     def test_doctor_cannot_update_another_doctors_appointment(self):
         another_doctor_user = User.objects.create_user(
@@ -226,6 +250,21 @@ class HospitalMsApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'cancelled')
+        self.assertEqual(response.data['patient_full_name'], 'Ada Lovelace')
+
+    def test_admin_appointment_list_includes_the_patient_full_name(self):
+        appointment = Appointment.objects.create(
+            patient=self.patient, doctor=self.doctor, slot=self.slot,
+            date=self.slot.date, status='pending',
+        )
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.get(f'{self.api_prefix}/admin/appointments/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]['id'], appointment.id)
+        self.assertEqual(response.data[0]['patient_full_name'], 'Ada Lovelace')
+        self.assertEqual(response.data[0]['patient_username'], 'patient')
 
     def test_non_admin_cannot_manage_appointments(self):
         self.client.force_authenticate(self.patient)
