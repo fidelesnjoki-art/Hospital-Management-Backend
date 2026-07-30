@@ -33,7 +33,7 @@ A backend system built with **Django** and **Django REST Framework (DRF)** for m
 1. **Clone the repository**
 
     \`\`\`bash
-    git clone https://github.com/your-username/hospital-management-system.git
+    git clone https://github.com/fidelisnjoki -art /hospital-management-system.git
     cd hospital-management-system
     \`\`\`
 
