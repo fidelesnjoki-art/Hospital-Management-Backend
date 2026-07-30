@@ -16,6 +16,7 @@ from .serializers import (
     DoctorSerializer,
     ProfileSerializer,
     RegisterSerializer,
+    SlotSerializer,
     TreatmentSerializer,
     UpdateStatusSerializer,
 )
@@ -97,6 +98,17 @@ class DoctorDetailView(generics.RetrieveAPIView):
         return Doctor.objects.annotate(
             available_slots=Count('slots', filter=Q(slots__is_booked=False, slots__date__gte=timezone.localdate()))
         )
+
+
+class SlotListView(generics.ListAPIView):
+    serializer_class = SlotSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Slot.objects.filter(is_booked=False, date__gte=timezone.localdate())
+        if doctor_id := self.request.query_params.get('doctor'):
+            queryset = queryset.filter(doctor_id=doctor_id)
+        return queryset
 
 
 class DoctorScheduledAppointmentsView(generics.ListAPIView):

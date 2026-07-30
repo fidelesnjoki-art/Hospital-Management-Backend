@@ -107,6 +107,14 @@ class DoctorSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'specialty', 'bio', 'photo_url', 'available_slots')
 
 
+class SlotSerializer(serializers.ModelSerializer):
+    doctor_name = serializers.CharField(source='doctor.name', read_only=True)
+
+    class Meta:
+        model = Slot
+        fields = ('id', 'doctor', 'doctor_name', 'date', 'start_time', 'is_booked')
+
+
 class AppointmentSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(source='doctor.name', read_only=True)
     patient_username = serializers.CharField(source='patient.username', read_only=True)

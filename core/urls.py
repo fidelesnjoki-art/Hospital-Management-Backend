@@ -14,6 +14,7 @@ from .views import (
     EmailTokenObtainPairView,
     MeView,
     RegisterView,
+    SlotListView,
 )
 
 urlpatterns = [
@@ -24,6 +25,7 @@ urlpatterns = [
     path('auth/settings/', AccountSettingsView.as_view(), name='account-settings'),
     path('doctors/', DoctorListView.as_view(), name='doctor-list'),
     path('doctors/<int:pk>/', DoctorDetailView.as_view(), name='doctor-detail'),
+    path('slots/', SlotListView.as_view(), name='slot-list'),
     path('doctor/appointments/', DoctorScheduledAppointmentsView.as_view(), name='doctor-appointments'),
     path('doctor/dashboard/', DoctorDashboardView.as_view(), name='doctor-dashboard'),
     path('doctor/appointments/<int:appointment_id>/diagnosis/', DoctorDiagnosisView.as_view(), name='doctor-diagnosis'),
