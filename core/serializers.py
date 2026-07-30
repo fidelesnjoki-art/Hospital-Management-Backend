@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
@@ -9,19 +10,21 @@ from .models import Appointment, Doctor, Profile, Slot
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=6)
     username = serializers.CharField(required=False, allow_blank=True, max_length=150)
-    role = serializers.ChoiceField(choices=['patient', 'doctor'], default='patient')
     phone = serializers.CharField(required=False, allow_blank=True)
-    doctor_name = serializers.CharField(required=False, max_length=255)
-    specialty = serializers.CharField(required=False, allow_blank=True, max_length=255)
     full_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
 
     class Meta:
         model = User
-        fields = ('username', 'email', 'password', 'role', 'phone', 'doctor_name', 'specialty', 'full_name')
+        fields = ('username', 'email', 'password', 'phone', 'full_name')
 
     def validate(self, attrs):
-        if attrs.get('role') == 'doctor' and not attrs.get('doctor_name'):
-            raise serializers.ValidationError({'doctor_name': 'This field is required for doctors.'})
+        doctor_only_fields = {'role', 'doctor_name', 'specialty', 'bio', 'photo_url'}
+        supplied_doctor_fields = doctor_only_fields.intersection(self.initial_data)
+        if supplied_doctor_fields:
+            raise serializers.ValidationError({
+                field: 'Doctor accounts can only be created by an administrator.'
+                for field in supplied_doctor_fields
+            })
         try:
             validate_password(attrs['password'])
         except DjangoValidationError as exc:
@@ -29,10 +32,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        role = validated_data.pop('role', 'patient')
         phone = validated_data.pop('phone', '')
-        doctor_name = validated_data.pop('doctor_name', '')
-        specialty = validated_data.pop('specialty', '')
         full_name = validated_data.pop('full_name', '')
         email = validated_data.get('email', '')
         username = validated_data.pop('username', '') or email.split('@')[0] or 'patient'
@@ -46,10 +46,70 @@ class RegisterSerializer(serializers.ModelSerializer):
             password=validated_data['password'],
             first_name=full_name,
         )
-        Profile.objects.create(user=user, role=role, phone=phone)
-        if role == 'doctor':
-            Doctor.objects.create(user=user, name=doctor_name, specialty=specialty)
+        Profile.objects.create(user=user, role='patient', phone=phone)
         return user
+
+
+class AdminDoctorCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=6)
+    username = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    phone = serializers.CharField(required=False, allow_blank=True)
+    full_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    doctor_name = serializers.CharField(max_length=255)
+    specialty = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    bio = serializers.CharField(required=False, allow_blank=True)
+    photo_url = serializers.URLField(required=False, allow_blank=True)
+
+    class Meta:
+        model = User
+        fields = (
+            'id', 'username', 'email', 'password', 'phone', 'full_name',
+            'doctor_name', 'specialty', 'bio', 'photo_url',
+        )
+        read_only_fields = ('id',)
+
+    def validate(self, attrs):
+        try:
+            validate_password(attrs['password'])
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({'password': list(exc.messages)})
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        phone = validated_data.pop('phone', '')
+        full_name = validated_data.pop('full_name', '')
+        doctor_name = validated_data.pop('doctor_name')
+        specialty = validated_data.pop('specialty', '')
+        bio = validated_data.pop('bio', '')
+        photo_url = validated_data.pop('photo_url', '')
+        email = validated_data.get('email', '')
+        username = validated_data.pop('username', '') or email.split('@')[0] or 'doctor'
+        base_username, suffix = username, 1
+        while User.objects.filter(username=username).exists():
+            username = f'{base_username}_{suffix}'
+            suffix += 1
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=validated_data['password'],
+            first_name=full_name,
+        )
+        Profile.objects.create(user=user, role='doctor', phone=phone)
+        Doctor.objects.create(
+            user=user,
+            name=doctor_name,
+            specialty=specialty,
+            bio=bio,
+            photo_url=photo_url,
+        )
+        return user
+
+    def to_representation(self, instance):
+        return {
+            **ProfileSerializer(instance.profile).data,
+            'doctor': DoctorSerializer(instance.doctor_profile).data,
+        }
 
 
 class ProfileSerializer(serializers.ModelSerializer):
