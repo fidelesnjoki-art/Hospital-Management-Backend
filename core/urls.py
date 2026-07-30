@@ -13,10 +13,12 @@ from .views import (
     DoctorScheduledAppointmentsView,
     DoctorTreatmentView,
     PatientDashboardView,
+    RegisterView,
     SlotListView,
 )
 
 urlpatterns = [
+    path('auth/register/', RegisterView.as_view(), name='register'),
     path('auth/settings/', AccountSettingsView.as_view(), name='account-settings'),
     path('dashboard/patient/', PatientDashboardView.as_view(), name='patient-dashboard'),
     path('doctors/', DoctorListView.as_view(), name='doctor-list'),

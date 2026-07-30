@@ -15,6 +15,7 @@ from .serializers import (
     BookAppointmentSerializer,
     DiagnosisSerializer,
     DoctorSerializer,
+    RegisterSerializer,
     SlotSerializer,
     TreatmentSerializer,
     UpdateStatusSerializer,
@@ -37,6 +38,11 @@ class IsDoctor(permissions.BasePermission):
             and getattr(request.user, 'profile', None) is not None
             and request.user.profile.role == 'doctor'
         )
+
+
+class RegisterView(generics.CreateAPIView):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = RegisterSerializer
 
 
 class AccountSettingsView(APIView):

@@ -6,6 +6,52 @@ from rest_framework import serializers
 from .models import Appointment, Doctor, Profile, Slot
 
 
+class RegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=6)
+    username = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    role = serializers.ChoiceField(choices=['patient', 'doctor'], default='patient')
+    phone = serializers.CharField(required=False, allow_blank=True)
+    doctor_name = serializers.CharField(required=False, max_length=255)
+    specialty = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    full_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'password', 'role', 'phone', 'doctor_name', 'specialty', 'full_name')
+
+    def validate(self, attrs):
+        if attrs.get('role') == 'doctor' and not attrs.get('doctor_name'):
+            raise serializers.ValidationError({'doctor_name': 'This field is required for doctors.'})
+        try:
+            validate_password(attrs['password'])
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({'password': list(exc.messages)})
+        return attrs
+
+    def create(self, validated_data):
+        role = validated_data.pop('role', 'patient')
+        phone = validated_data.pop('phone', '')
+        doctor_name = validated_data.pop('doctor_name', '')
+        specialty = validated_data.pop('specialty', '')
+        full_name = validated_data.pop('full_name', '')
+        email = validated_data.get('email', '')
+        username = validated_data.pop('username', '') or email.split('@')[0] or 'patient'
+        base_username, suffix = username, 1
+        while User.objects.filter(username=username).exists():
+            username = f'{base_username}_{suffix}'
+            suffix += 1
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=validated_data['password'],
+            first_name=full_name,
+        )
+        Profile.objects.create(user=user, role=role, phone=phone)
+        if role == 'doctor':
+            Doctor.objects.create(user=user, name=doctor_name, specialty=specialty)
+        return user
+
+
 class AccountSettingsSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     email = serializers.EmailField(source='user.email', required=False, allow_blank=True)
