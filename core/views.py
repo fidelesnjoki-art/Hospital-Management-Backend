@@ -149,6 +149,18 @@ class BookAppointmentView(APIView):
         return Response(AppointmentSerializer(appointment).data, status=status.HTTP_201_CREATED)
 
 
+class DoctorScheduledAppointmentsView(generics.ListAPIView):
+    serializer_class = AppointmentSerializer
+    permission_classes = [IsDoctor]
+
+    def get_queryset(self):
+        return Appointment.objects.filter(
+            doctor__user=self.request.user,
+            date__gte=timezone.localdate(),
+            status__in=['pending', 'confirmed'],
+        ).select_related('patient', 'slot').order_by('date', 'slot__start_time')
+
+
 class AdminAppointmentListView(generics.ListAPIView):
     serializer_class = AppointmentSerializer
     permission_classes = [IsAdmin]
