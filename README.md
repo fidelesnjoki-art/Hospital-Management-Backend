@@ -162,7 +162,7 @@ This project is licensed under the [MIT License](LICENSE) — update this sectio
 
 ## Authors
 
-1. Erika Gwiyo
+1. Erika Gwiyo Kavuto
 2. Jaden Afrika
 3. Fidelis Njoki
 4. Favour Kendi
