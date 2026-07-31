@@ -84,19 +84,19 @@ A backend system built with **Django** and **Django REST Framework (DRF)** for m
 1. **Build and start the containers**
 
     \`\`\`bash
-    docker-compose up --build
+    docker compose up --build
     \`\`\`
 
 2. **Run migrations inside the container** (if not automated)
 
     \`\`\`bash
-    docker-compose exec web python manage.py migrate
+    docker compose exec web python manage.py migrate
     \`\`\`
 
 3. **Create a superuser inside the container**
 
     \`\`\`bash
-    docker-compose exec web python manage.py createsuperuser
+    docker compose exec web python manage.py createsuperuser
     \`\`\`
 
 ## API Documentation
