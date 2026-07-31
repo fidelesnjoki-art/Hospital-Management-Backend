@@ -11,6 +11,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import Appointment, Doctor, Profile, Slot
 from .serializers import (
     AccountSettingsSerializer,
+    AdminDoctorCreateSerializer,
     AppointmentSerializer,
     BookAppointmentSerializer,
     DiagnosisSerializer,
@@ -217,6 +218,24 @@ class AdminAppointmentListView(generics.ListAPIView):
             if value := self.request.query_params.get(field):
                 queryset = queryset.filter(**{field: value})
         return queryset.order_by('-date', '-created_at')
+
+
+class AdminDoctorCreateView(generics.CreateAPIView):
+    serializer_class = AdminDoctorCreateSerializer
+    permission_classes = [IsAdmin]
+
+
+class AdminDoctorDeleteView(APIView):
+    permission_classes = [IsAdmin]
+
+    def delete(self, request, doctor_id):
+        doctor = get_object_or_404(Doctor.objects.select_related('user'), id=doctor_id)
+        user = doctor.user
+        with transaction.atomic():
+            doctor.delete()
+            if user:
+                user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AdminUpdateStatusView(APIView):

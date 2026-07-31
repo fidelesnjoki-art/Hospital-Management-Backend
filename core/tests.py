@@ -20,6 +20,7 @@ class HospitalMsApiTests(APITestCase):
         self.doctor = Doctor.objects.create(user=self.doctor_user, name='Dr Grace Hopper', specialty='General')
         self.patient = User.objects.create_user(
             username='patient', email='patient@example.com', password='strong-password',
+            first_name='Ada', last_name='Lovelace',
         )
         Profile.objects.create(user=self.patient, role='patient')
         self.slot = Slot.objects.create(
@@ -65,6 +66,58 @@ class HospitalMsApiTests(APITestCase):
         self.assertEqual(user.first_name, 'New Patient')
         self.assertEqual(user.profile.role, 'patient')
         self.assertEqual(user.profile.phone, '+254700000000')
+
+    def test_public_registration_cannot_create_a_doctor(self):
+        response = self.client.post(
+            f'{self.api_prefix}/auth/register/',
+            {
+                'email': 'not.a.doctor@example.com',
+                'password': 'A-safe-password-123',
+                'role': 'doctor',
+                'doctor_name': 'Dr Not Allowed',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.filter(email='not.a.doctor@example.com').exists())
+
+    def test_only_admin_can_create_a_doctor_account(self):
+        payload = {
+            'email': 'new.doctor@example.com',
+            'password': 'A-safe-password-123',
+            'full_name': 'Katherine Johnson',
+            'phone': '+254722222222',
+            'doctor_name': 'Dr Katherine Johnson',
+            'specialty': 'Cardiology',
+        }
+        self.client.force_authenticate(self.patient)
+        forbidden = self.client.post(f'{self.api_prefix}/admin/doctors/', payload, format='json')
+        self.assertEqual(forbidden.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(f'{self.api_prefix}/admin/doctors/', payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        user = User.objects.get(email='new.doctor@example.com')
+        self.assertEqual(user.profile.role, 'doctor')
+        self.assertEqual(user.doctor_profile.name, 'Dr Katherine Johnson')
+        self.assertEqual(user.doctor_profile.specialty, 'Cardiology')
+        self.assertEqual(response.data['doctor']['id'], user.doctor_profile.id)
+
+    def test_only_admin_can_delete_a_doctor_account(self):
+        self.client.force_authenticate(self.patient)
+        forbidden = self.client.delete(f'{self.api_prefix}/admin/doctors/{self.doctor.id}/')
+        self.assertEqual(forbidden.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(Doctor.objects.filter(id=self.doctor.id).exists())
+
+        doctor_id, user_id = self.doctor.id, self.doctor_user.id
+        self.client.force_authenticate(self.admin)
+        response = self.client.delete(f'{self.api_prefix}/admin/doctors/{doctor_id}/')
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Doctor.objects.filter(id=doctor_id).exists())
+        self.assertFalse(User.objects.filter(id=user_id).exists())
 
     def test_account_settings_update_contact_details_and_password(self):
         self.client.force_authenticate(self.patient)
@@ -134,6 +187,29 @@ class HospitalMsApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'completed')
         self.assertEqual(response.data['diagnosis'], 'Seasonal allergy')
+        self.assertEqual(response.data['patient_full_name'], 'Ada Lovelace')
+        self.assertEqual(response.data['patient_username'], 'patient')
+
+    def test_doctor_appointment_lists_include_the_patient_full_name(self):
+        upcoming = Appointment.objects.create(
+            patient=self.patient, doctor=self.doctor, slot=self.slot,
+            date=self.slot.date, status='confirmed',
+        )
+        history = Appointment.objects.create(
+            patient=self.patient, doctor=self.doctor,
+            date=timezone.localdate() - timedelta(days=1), status='completed',
+        )
+        self.client.force_authenticate(self.doctor_user)
+
+        upcoming_response = self.client.get(f'{self.api_prefix}/doctor/appointments/')
+        history_response = self.client.get(f'{self.api_prefix}/doctor/dashboard/')
+
+        self.assertEqual(upcoming_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(history_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(upcoming_response.data[0]['id'], upcoming.id)
+        self.assertEqual(history_response.data[0]['id'], history.id)
+        self.assertEqual(upcoming_response.data[0]['patient_full_name'], 'Ada Lovelace')
+        self.assertEqual(history_response.data[0]['patient_full_name'], 'Ada Lovelace')
 
     def test_doctor_cannot_update_another_doctors_appointment(self):
         another_doctor_user = User.objects.create_user(
@@ -174,6 +250,21 @@ class HospitalMsApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'cancelled')
+        self.assertEqual(response.data['patient_full_name'], 'Ada Lovelace')
+
+    def test_admin_appointment_list_includes_the_patient_full_name(self):
+        appointment = Appointment.objects.create(
+            patient=self.patient, doctor=self.doctor, slot=self.slot,
+            date=self.slot.date, status='pending',
+        )
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.get(f'{self.api_prefix}/admin/appointments/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]['id'], appointment.id)
+        self.assertEqual(response.data[0]['patient_full_name'], 'Ada Lovelace')
+        self.assertEqual(response.data[0]['patient_username'], 'patient')
 
     def test_non_admin_cannot_manage_appointments(self):
         self.client.force_authenticate(self.patient)
