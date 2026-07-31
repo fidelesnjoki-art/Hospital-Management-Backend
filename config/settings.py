@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'drf_spectacular',
 
     'rest_framework',
     'rest_framework_simplejwt',
@@ -171,15 +172,65 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    # drf-spectacular schema generation
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+
+    # JWT Authentication
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
+
+    # Require authentication by default
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
     ),
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Hospital Management API",
+    "DESCRIPTION": "REST API documentation for the Hospital Management System.",
+    "VERSION": "1.0.0",
+
+    # Do not show the schema endpoint itself in Swagger
+    "SERVE_INCLUDE_SCHEMA": False,
+
+    # Swagger UI settings
+    "SWAGGER_UI_SETTINGS": {
+        "deepLinking": True,
+        "persistAuthorization": True,
+    },
+
+    # Improves request/response documentation
+    "COMPONENT_SPLIT_REQUEST": True,
+
+    # JWT Authentication configuration
+    "SECURITY": [
+        {
+            "BearerAuth": []
+        }
+    ],
+
+    "COMPONENTS": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+            }
+        }
+    },
+
+    # Optional tags to organize your endpoints
+    "TAGS": [
+        {"name": "Authentication", "description": "User authentication endpoints"},
+        {"name": "Patients", "description": "Patient management"},
+        {"name": "Doctors", "description": "Doctor management"},
+        {"name": "Appointments", "description": "Appointment scheduling"},
+        {"name": "Medical Records", "description": "Patient medical records"},
+    ],
 }
